@@ -1,0 +1,7 @@
+# Compiled binary (built by build.sh)
+/WinterIsComing
+
+# Temporary / editor files
+*.new
+.DS_Store
+.vscode/
