@@ -30,9 +30,11 @@ Snow falls on your desktop and piles up on your windows and Dock. Roll it into s
 
 ## Download 🎁
 
-1. Grab `WinterIsComing-mac-vX.zip` from [Releases](https://github.com/yike-shi/WINTER_IS_COMING/releases/latest)
+1. Grab `WinterIsComing-mac-vX.zip` from [Releases](https://github.com/yike-shi/WINTER_IS_COMING/releases/latest) (not the "Source code" ones)
 2. Unzip it and drag **WinterIsComing** into your Applications folder
-3. Double-click it. The first time, macOS will block it because the app isn't from the App Store. Click **Done**, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only need to do this once ✨
+3. Double-click it. The first time, macOS will say it can't open the app. Click **Done**, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only need to do this once ✨
+
+> 🙏 **Why does macOS block it?** This is an early version, and it isn't signed with a paid Apple Developer account yet, so macOS doesn't recognize it. It's not a virus, promise! The app never connects to the internet, and all the code is right here for you to read. Thanks for your patience while I work on it 💙
 
 ## Build it yourself 🛠️
 
