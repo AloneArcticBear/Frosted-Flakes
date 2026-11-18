@@ -17,10 +17,16 @@ Snow falls on your desktop and piles up on your windows and Dock. Roll it into s
 - ⛄ **Stack three snowballs** and they turn into a snowman with a carrot nose and a red scarf
 - 💥 **A falling snowball goes *poof*** into a soft heap of snow, ready to be rolled again
 
-## Try it 🚀
+## Download 🎁
+
+1. Grab `WinterIsComing-mac-vX.zip` from [Releases](https://github.com/yike-shi/WINTER_IS_COMING/releases/latest)
+2. Unzip it and drag **WinterIsComing** into your Applications folder
+3. Double-click it. The first time, macOS will block it because the app isn't from the App Store. Click **Done**, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only need to do this once ✨
+
+## Build it yourself 🛠️
 
 ```sh
-git clone https://github.com/<your-username>/WINTER_IS_COMING.git
+git clone https://github.com/yike-shi/WINTER_IS_COMING.git
 cd WINTER_IS_COMING
 zsh build.sh
 ```
@@ -28,7 +34,19 @@ zsh build.sh
 Use the ❄︎ in the menu bar to pause, pick light, medium or heavy snow, clear the snow, or quit.
 
 - No `swiftc`? Run `xcode-select --install` first.
-- Want snow on the Dock too? Turn on **Terminal** in System Settings → Privacy & Security → Accessibility.
+- Want snow on the Dock too? Turn on **WinterIsComing** (or **Terminal**, if you run it with `build.sh`) in System Settings → Privacy & Security → Accessibility.
+- Want your own `.app`? Run `zsh make_app.sh 1.0`.
+
+## Windows version 🪟 (beta)
+
+You asked for it, so here it is! Snow falls on your Windows desktop and piles up on your windows and the taskbar, and dragging a window still sends it flying. Snowballs and snowmen are coming soon ⛄
+
+```sh
+cd WINTER_IS_COMING/windows
+dotnet run -c Release
+```
+
+Use the ❄ icon in the system tray to pause, pick the snow amount, clear the snow, or quit. You'll need the [.NET 8 SDK](https://dotnet.microsoft.com/download) (`winget install Microsoft.DotNet.SDK.8`).
 
 ## Make it yours 🎨
 
