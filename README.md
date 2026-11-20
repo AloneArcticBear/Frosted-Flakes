@@ -20,7 +20,7 @@ Snow falls on your desktop and piles up on your windows and Dock. Roll it into s
 - **A falling snowball goes *poof*** into a soft heap of snow, ready to be rolled again
 - **Fairy lights**: colorful twinkling lights that swing into place along the top of your windows. They're off by default, so turn them on from the ❄︎ menu (or press `L`)
 
-## How to run
+## How to play 🎮
 
 - **Roll a snowball**: slide your mouse sideways over snow on a window, the Dock or the ground
 - **Push it**: roll one snowball into another and it gets shoved along
@@ -32,8 +32,8 @@ Snow falls on your desktop and piles up on your windows and Dock. Roll it into s
 
 ## Download 🎁
 
-1. Grab `WinterIsComing-mac-vX.zip` from [Releases](https://github.com/yike-shi/WINTER_IS_COMING/releases/latest) (not the "Source code" ones)
-2. Unzip it and drag **WinterIsComing** into your Applications folder
+1. Grab `FrostedFlakes-mac-vX.zip` from [Releases](https://github.com/ed3vv/Frosted_Flakes/releases/latest) (not the "Source code" ones)
+2. Unzip it and drag **FrostedFlakes** into your Applications folder
 3. Double-click it. The first time, macOS will say it can't open the app. Click **Done**, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only need to do this once ✨
 
 > 🙏 **Why does macOS block it?** This is an early version, and it isn't signed with a paid Apple Developer account yet, so macOS doesn't recognize it. It's not a virus, promise! The app never connects to the internet, and all the code is right here for you to read. Thanks for your patience while I work on it 💙
@@ -41,15 +41,15 @@ Snow falls on your desktop and piles up on your windows and Dock. Roll it into s
 ## Build it yourself 🛠️
 
 ```sh
-git clone https://github.com/yike-shi/WINTER_IS_COMING.git
-cd WINTER_IS_COMING
+git clone https://github.com/ed3vv/Frosted_Flakes.git
+cd Frosted_Flakes
 zsh build.sh
 ```
 
 Use the ❄︎ in the menu bar to pause, pick light, medium or heavy snow, switch the fairy lights on, clear the snow, or quit.
 
 - No `swiftc`? Run `xcode-select --install` first.
-- Want snow on the Dock too? Turn on **WinterIsComing** (or **Terminal**, if you run it with `build.sh`) in System Settings → Privacy & Security → Accessibility.
+- Want snow on the Dock too? Turn on **FrostedFlakes** (or **Terminal**, if you run it with `build.sh`) in System Settings → Privacy & Security → Accessibility.
 - Want your own `.app`? Run `zsh make_app.sh 1.0`.
 
 ## Windows version 🪟 (beta)
@@ -57,7 +57,7 @@ Use the ❄︎ in the menu bar to pause, pick light, medium or heavy snow, switc
 You asked for it, so here it is! Snow falls on your Windows desktop and piles up on your windows and the taskbar, and dragging a window still sends it flying. Snowballs and snowmen are coming soon ⛄
 
 ```sh
-cd WINTER_IS_COMING/windows
+cd Frosted_Flakes/windows
 dotnet run -c Release
 ```
 
@@ -65,7 +65,7 @@ Use the ❄ icon in the system tray to pause, pick the snow amount, clear the sn
 
 ## Make it yours 🎨
 
-Every setting lives at the top of `WinterIsComing.swift` (`enum Cfg`): how many flakes fall, how fast they fall, how tall the piles get, how big a snowball can grow… Change a number and run `zsh build.sh` again.
+Every setting lives at the top of `FrostedFlakes.swift` (`enum Cfg`): how many flakes fall, how fast they fall, how tall the piles get, how big a snowball can grow… Change a number and run `zsh build.sh` again.
 
 ## License
 
@@ -75,6 +75,8 @@ Every setting lives at the top of `WinterIsComing.swift` (`enum Cfg`): how many 
 - Hides snowflakes behind windows.
 - Fixed UI glitch where snowflakes were spawning/immediately despawning in fullscreen
 - Multi monitor support (does not yet support snow transferring monitors)
+- Snow spawns at a constant rate, so snowfall density stays the same however much of the screen your windows cover
+- These changes are for the macOS version; the Windows beta is unchanged apart from the rename
 
 ## CHANGES LATER:
 - Instead of deleting snow behind windows simply hide them

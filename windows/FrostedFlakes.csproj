@@ -3,8 +3,8 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
-    <AssemblyName>WinterIsComing</AssemblyName>
-    <RootNamespace>WinterIsComing</RootNamespace>
+    <AssemblyName>FrostedFlakes</AssemblyName>
+    <RootNamespace>FrostedFlakes</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>

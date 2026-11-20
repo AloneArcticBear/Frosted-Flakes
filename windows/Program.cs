@@ -1,4 +1,4 @@
-// WinterIsComing for Windows — snow on your desktop.
+// FrostedFlakes for Windows — snow on your desktop.
 // Snow piles up on top of windows and on the taskbar, and flies off when you drag a window.
 // Pure Win32 + a tiny software renderer: no WinForms, no extra packages.
 //
@@ -12,7 +12,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace WinterIsComing;
+namespace FrostedFlakes;
 
 // MARK: - Settings (feel free to tweak)
 
@@ -663,7 +663,7 @@ static unsafe class Program
             lpfnWndProc = Marshal.GetFunctionPointerForDelegate(wndProc),
             hInstance = inst,
             hCursor = LoadCursorW(IntPtr.Zero, (IntPtr)32512),
-            lpszClassName = "WinterIsComingWnd",
+            lpszClassName = "FrostedFlakesWnd",
         };
         RegisterClassExW(ref wc);
 
@@ -671,10 +671,10 @@ static unsafe class Program
         bh = GetSystemMetrics(1);   // SM_CYSCREEN
         // Transparent, click-through, always on top, never takes focus, not in Alt+Tab
         overlay = CreateWindowExW(WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
-                                  "WinterIsComingWnd", "WinterIsComing", WS_POPUP, 0, 0, bw, bh,
+                                  "FrostedFlakesWnd", "FrostedFlakes", WS_POPUP, 0, 0, bw, bh,
                                   IntPtr.Zero, IntPtr.Zero, inst, IntPtr.Zero);
         // A hidden window that owns the tray icon and its menu
-        tray = CreateWindowExW(WS_EX_TOOLWINDOW, "WinterIsComingWnd", "WinterIsComing tray", WS_POPUP, 0, 0, 0, 0,
+        tray = CreateWindowExW(WS_EX_TOOLWINDOW, "FrostedFlakesWnd", "FrostedFlakes tray", WS_POPUP, 0, 0, 0, 0,
                                IntPtr.Zero, IntPtr.Zero, inst, IntPtr.Zero);
 
         uint dpi = GetDpiForWindow(overlay);
@@ -824,7 +824,7 @@ static unsafe class Program
     {
         cbSize = (uint)Marshal.SizeOf<NOTIFYICONDATAW>(),
         hWnd = tray, uID = 1, uCallbackMessage = WM_TRAY, hIcon = trayIcon,
-        szTip = "WinterIsComing ❄", szInfo = "", szInfoTitle = "",
+        szTip = "FrostedFlakes ❄", szInfo = "", szInfoTitle = "",
     };
 
     static void ShowMenu()

@@ -1,9 +1,9 @@
-// WinterIsComing — snow on your Mac desktop.
+// FrostedFlakes — snow on your Mac desktop.
 // Snow piles up on top of windows, the Dock and the bottom of the screen and flies off when you drag a
 // window. Hover over the snow to roll snowballs, push them into each other, drag them with the mouse and
 // stack three of them into a snowman. See README.md for the full list.
-// Build: swiftc -O WinterIsComing.swift -o WinterIsComing
-// Run:   ./WinterIsComing   (a ❄︎ icon appears in the menu bar: pause / snow amount / quit)
+// Build: swiftc -O FrostedFlakes.swift -o FrostedFlakes
+// Run:   ./FrostedFlakes   (a ❄︎ icon appears in the menu bar: pause / snow amount / quit)
 
 import Cocoa
 import SpriteKit
@@ -1476,7 +1476,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// A small how-to-play note: the app has no window or Dock icon, so this is where people learn the tricks
     @objc func showGuide() {
         let alert = NSAlert()
-        alert.messageText = "Welcome to WinterIsComing ❄️"
+        alert.messageText = "Welcome to FrostedFlakes ❄️"
         alert.informativeText = """
         It's snowing on your desktop! Here's what you can do:
 

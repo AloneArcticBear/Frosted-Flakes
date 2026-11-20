@@ -1,21 +1,21 @@
 #!/bin/zsh
-# Package WinterIsComing into a double-clickable Mac app + a zip ready for GitHub Releases.
+# Package FrostedFlakes into a double-clickable Mac app + a zip ready for GitHub Releases.
 # Usage: zsh make_app.sh [version]        e.g.  zsh make_app.sh 1.0
 set -e
 cd "$(dirname "$0")"
 
 VERSION="${1:-1.0}"
-APP="dist/WinterIsComing.app"
-ZIP="dist/WinterIsComing-mac-v${VERSION}.zip"
+APP="dist/FrostedFlakes.app"
+ZIP="dist/FrostedFlakes-mac-v${VERSION}.zip"
 
-echo "❄︎ Building WinterIsComing ${VERSION}…"
+echo "❄︎ Building FrostedFlakes ${VERSION}…"
 rm -rf dist
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" dist/tmp
 
 # 1. Universal binary: runs on both Apple silicon and Intel Macs
-swiftc -O -target arm64-apple-macos12  WinterIsComing.swift -o dist/tmp/WinterIsComing-arm64
-swiftc -O -target x86_64-apple-macos12 WinterIsComing.swift -o dist/tmp/WinterIsComing-x86_64
-lipo -create dist/tmp/WinterIsComing-arm64 dist/tmp/WinterIsComing-x86_64 -output "$APP/Contents/MacOS/WinterIsComing"
+swiftc -O -target arm64-apple-macos12  FrostedFlakes.swift -o dist/tmp/FrostedFlakes-arm64
+swiftc -O -target x86_64-apple-macos12 FrostedFlakes.swift -o dist/tmp/FrostedFlakes-x86_64
+lipo -create dist/tmp/FrostedFlakes-arm64 dist/tmp/FrostedFlakes-x86_64 -output "$APP/Contents/MacOS/FrostedFlakes"
 
 # 2. App icon (from assets/icon.png)
 ICONSET=dist/tmp/AppIcon.iconset
@@ -32,10 +32,10 @@ cat > "$APP/Contents/Info.plist" <<EOF
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key>               <string>WinterIsComing</string>
-  <key>CFBundleDisplayName</key>        <string>WinterIsComing</string>
+  <key>CFBundleName</key>               <string>FrostedFlakes</string>
+  <key>CFBundleDisplayName</key>        <string>FrostedFlakes</string>
   <key>CFBundleIdentifier</key>         <string>io.github.yike-shi.winteriscoming</string>
-  <key>CFBundleExecutable</key>         <string>WinterIsComing</string>
+  <key>CFBundleExecutable</key>         <string>FrostedFlakes</string>
   <key>CFBundleIconFile</key>           <string>AppIcon</string>
   <key>CFBundlePackageType</key>        <string>APPL</string>
   <key>CFBundleShortVersionString</key> <string>${VERSION}</string>
