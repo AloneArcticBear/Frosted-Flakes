@@ -1,4 +1,4 @@
-#           ❄︎ WinterIsComing ❄︎
+#           ❄︎ Frosted Flakes ❄︎
 
 NOTE: This is a forked version of https://github.com/yike-shi/WINTER_IS_COMING
 
@@ -74,7 +74,7 @@ Every setting lives at the top of `WinterIsComing.swift` (`enum Cfg`): how many 
 ## CHANGES FROM ORIGINAL REPO:
 - Hides snowflakes behind windows.
 - Fixed UI glitch where snowflakes were spawning/immediately despawning in fullscreen
-
+- Multi monitor support (does not yet support snow transferring monitors)
 
 ## CHANGES LATER:
 - Instead of deleting snow behind windows simply hide them
