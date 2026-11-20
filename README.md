@@ -1,5 +1,7 @@
 #           ❄︎ WinterIsComing ❄︎
 
+NOTE: This is a forked version of https://github.com/yike-shi/WINTER_IS_COMING
+
 Let it snow on your Mac! ☃️
 
 Snow falls on your desktop and piles up on your windows and Dock. Roll it into snowballs and build a little snowman. It's all one Swift file, and every flake is drawn in code.
@@ -18,7 +20,7 @@ Snow falls on your desktop and piles up on your windows and Dock. Roll it into s
 - **A falling snowball goes *poof*** into a soft heap of snow, ready to be rolled again
 - **Fairy lights**: colorful twinkling lights that swing into place along the top of your windows. They're off by default, so turn them on from the ❄︎ menu (or press `L`)
 
-## How to play 🎮
+## How to run
 
 - **Roll a snowball**: slide your mouse sideways over snow on a window, the Dock or the ground
 - **Push it**: roll one snowball into another and it gets shoved along
@@ -68,3 +70,16 @@ Every setting lives at the top of `WinterIsComing.swift` (`enum Cfg`): how many 
 ## License
 
 [MIT](LICENSE) · Made with 💙 and a little help from Claude
+
+## CHANGES FROM ORIGINAL REPO:
+- Hides snowflakes behind windows.
+- Fixed UI glitch where snowflakes were spawning/immediately despawning in fullscreen
+
+
+## CHANGES LATER:
+- Instead of deleting snow behind windows simply hide them
+- Prevent snowflakes from appearing in front of window near edges
+- make window interactions with snow more clean
+- Fix rounded edges
+- Add idle snow falling
+- fix diff desktop
