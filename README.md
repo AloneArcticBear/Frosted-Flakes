@@ -72,10 +72,18 @@ Every setting lives at the top of `FrostedFlakes.swift` (`enum Cfg`): how many f
 [MIT](LICENSE) · Made with 💙 and a little help from Claude
 
 ## CHANGES FROM ORIGINAL REPO:
+
+v1.1 (19 Nov)
 - Hides snowflakes behind windows.
 - Fixed UI glitch where snowflakes were spawning/immediately despawning in fullscreen
 - Multi monitor support (does not yet support snow transferring monitors)
 - Constant snowfall rate (Used to be dependent on window size)
+
+v1.2 (20 Nov)
+- Decreased snowfall accumulation rate
+- new snowstorm snow amount
+- rebalanced snow falling rates (12, 24, 48, 96)
+
 
 ## CHANGES LATER:
 - Instead of deleting snow behind windows simply hide them

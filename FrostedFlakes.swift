@@ -11,7 +11,7 @@ import SpriteKit
 // MARK: - Settings (feel free to tweak)
 
 enum Cfg {
-    static var targetFlakes = 260            // number of flakes falling at the same time
+    static var flakesPerSecond: CGFloat = 24 // how many new flakes appear per second on each screen (the menu sets this)
     static let colW: CGFloat = 3             // width of one column of the snow height map (px)
     static let windowPileMax: CGFloat = 16   // max snow height on top of a window
     static let groundPileMax: CGFloat = 34   // max snow height at the bottom of the screen
@@ -34,6 +34,7 @@ enum Cfg {
     static let bulbGlow: CGFloat = 19        // size of a bulb's soft glow
     static let bulbCore: CGFloat = 5.5       // size of a bulb's bright center
     static let dockGain: CGFloat = 3.0       // snow landing on the Dock counts this many times more, so it builds up
+    static let flakeSnow: CGFloat = 0.5      // how much snow a falling flake adds when it lands (1 = original, 0.5 = half)
 }
 
 // MARK: - Find the Dock (needs Accessibility permission)
@@ -107,11 +108,16 @@ struct Layer {
     let z: CGFloat
 }
 
+let layerWeights: [CGFloat] = [0.40, 0.28, 0.32]   // share of new flakes in each layer: far, middle, near
+
 let layers: [Layer] = [
     Layer(size: 1.8...3.0, speed: 22...38,  alpha: 0.30...0.50, sway: 5...10,  wind: 0.5, z: 1),
     Layer(size: 3.0...4.8, speed: 40...65,  alpha: 0.60...0.80, sway: 9...16,  wind: 0.8, z: 2),
     Layer(size: 4.8...7.5, speed: 70...105, alpha: 0.85...1.00, sway: 14...24, wind: 1.1, z: 7),
 ]
+
+/// Average fall speed of a flake in px/s (layer speeds weighted by how often each layer spawns)
+let avgFlakeSpeed: CGFloat = zip(layers, layerWeights).reduce(0) { $0 + ($1.0.speed.lowerBound + $1.0.speed.upperBound) / 2 * $1.1 }
 
 @inline(__always) func rnd(_ a: CGFloat, _ b: CGFloat) -> CGFloat { CGFloat.random(in: a...b) }
 
@@ -476,6 +482,8 @@ final class SnowScene: SKScene {
     var pollAcc: CGFloat = 0
     var t: CGFloat = 0
     var spawnAcc: CGFloat = 0     // fractional flakes owed by the spawn rate
+    /// How many flakes are in the air on an uncovered screen: spawn rate x time a flake takes to fall
+    var expectedFlakes: Int { Int(Cfg.flakesPerSecond * size.height / (avgFlakeSpeed * Cfg.fallSpeed)) }
     let myPID = getpid()
     let world = SKNode()
     static let sharedDock = DockTracker()      // one tracker for all screens (one permission prompt)
@@ -506,7 +514,7 @@ final class SnowScene: SKScene {
         speckTex = makeSpeckTexture()
         addChild(world)
         resetGround()
-        for _ in 0..<Cfg.targetFlakes { spawnFlake(y: rnd(0, size.height)) }
+        for _ in 0..<expectedFlakes { spawnFlake(y: rnd(0, size.height)) }
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -559,7 +567,7 @@ final class SnowScene: SKScene {
         if y == nil && topCovered(x) { return }   // nothing falls in from above a fullscreen window
         let f = obtain()
         let r = CGFloat.random(in: 0...1)
-        let li = r < 0.40 ? 0 : (r < 0.68 ? 1 : 2)   // 40% far, 28% middle, 32% near
+        let li = r < layerWeights[0] ? 0 : (r < layerWeights[0] + layerWeights[1] ? 1 : 2)   // far, middle, near
         let L = layers[li]
         f.inFront = Cfg.flakesInFront && li == 0 && CGFloat.random(in: 0...1) < Cfg.inFrontFraction
         f.isClump = false
@@ -600,7 +608,7 @@ final class SnowScene: SKScene {
         }
         let total = p.total
         guard total > 0.5 else { p.clear(); return }
-        let budget = CGFloat(max(0, Cfg.maxClumps - flakes.count + Cfg.targetFlakes))
+        let budget = CGFloat(max(0, Cfg.maxClumps - flakes.count + expectedFlakes))
         let k = min(1, budget / max(1, total / 3.5))
         for c in 0..<p.count where p.h[c] > 0.6 {
             var amount = p.h[c] / 3.5 * k
@@ -1273,7 +1281,7 @@ final class SnowScene: SKScene {
                    !(f.isClump && f.ignoreID == SnowScene.dockID && t < f.ignoreUntil) {
                     let s = d.surface(c)
                     if prevY >= s && p.y < s {
-                        d.add(at: c, amount: (f.isClump ? 1.6 : f.size * 0.16) * Cfg.dockGain)
+                        d.add(at: c, amount: (f.isClump ? 1.6 : f.size * 0.16 * Cfg.flakeSnow) * Cfg.dockGain)
                         gone = true
                     }
                 }
@@ -1284,14 +1292,14 @@ final class SnowScene: SKScene {
                     guard let c = pile.col(at: p.x), !pile.occ[c] else { continue }
                     let s = pile.surface(c)
                     if prevY >= s && p.y < s {
-                        pile.add(at: c, amount: f.isClump ? 1.6 : f.size * 0.16)
+                        pile.add(at: c, amount: f.isClump ? 1.6 : f.size * 0.16 * Cfg.flakeSnow)
                         gone = true
                         break
                     }
                 } }
                 // Finally the bottom of the screen
                 if !gone, let g = ground, let c = g.col(at: p.x), p.y < g.surface(c) {
-                    if !g.occ[c] { g.add(at: c, amount: f.isClump ? 1.6 : f.size * 0.12) }
+                    if !g.occ[c] { g.add(at: c, amount: f.isClump ? 1.6 : f.size * 0.12 * Cfg.flakeSnow) }
                     gone = true
                 }
             }
@@ -1316,10 +1324,7 @@ final class SnowScene: SKScene {
 
         // Spawn at a constant rate (flakes/s) instead of topping up to a count, so snow
         // that lands on windows isn't re-spawned elsewhere and density stays the same.
-        // Rate = targetFlakes / average fall time, so an uncovered screen holds ~targetFlakes.
-        let avgSpeed = (0.40 * 30 + 0.28 * 52.5 + 0.32 * 87.5) * Cfg.fallSpeed
-        let rate = CGFloat(Cfg.targetFlakes) * avgSpeed / max(size.height, 1)
-        spawnAcc += rate * dt
+        spawnAcc += Cfg.flakesPerSecond * dt
         while spawnAcc >= 1 { spawnAcc -= 1; spawnFlake() }
     }
 }
@@ -1428,11 +1433,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let amount = NSMenuItem(title: "Snow Amount", action: nil, keyEquivalent: "")
         let sub = NSMenu()
-        for (title, n) in [("Light", 120), ("Medium", 260), ("Heavy", 500)] {
+        for (title, n) in [("Light", 12), ("Medium", 24), ("Heavy", 48), ("Snowstorm", 96)] {
             let it = NSMenuItem(title: title, action: #selector(setAmount(_:)), keyEquivalent: "")
             it.target = self
             it.tag = n
-            it.state = (n == Cfg.targetFlakes) ? .on : .off
+            it.state = (CGFloat(n) == Cfg.flakesPerSecond) ? .on : .off
             sub.addItem(it)
             amountItems.append(it)
         }
@@ -1467,7 +1472,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func setAmount(_ sender: NSMenuItem) {
-        Cfg.targetFlakes = sender.tag
+        Cfg.flakesPerSecond = CGFloat(sender.tag)
         for it in amountItems { it.state = (it === sender) ? .on : .off }
     }
 
