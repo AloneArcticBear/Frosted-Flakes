@@ -75,8 +75,7 @@ Every setting lives at the top of `FrostedFlakes.swift` (`enum Cfg`): how many f
 - Hides snowflakes behind windows.
 - Fixed UI glitch where snowflakes were spawning/immediately despawning in fullscreen
 - Multi monitor support (does not yet support snow transferring monitors)
-- Snow spawns at a constant rate, so snowfall density stays the same however much of the screen your windows cover
-- These changes are for the macOS version; the Windows beta is unchanged apart from the rename
+- Constant snowfall rate (Used to be dependent on window size)
 
 ## CHANGES LATER:
 - Instead of deleting snow behind windows simply hide them
@@ -85,3 +84,4 @@ Every setting lives at the top of `FrostedFlakes.swift` (`enum Cfg`): how many f
 - Fix rounded edges
 - Add idle snow falling
 - fix diff desktop
+- bug: pausing and resuming freezes snow
