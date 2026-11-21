@@ -18,7 +18,8 @@ enum Cfg {
     static let gravity: CGFloat = 900        // gravity for snow sliding off
     static let pollInterval = 1.0 / 30.0     // how often window positions are checked (s)
     static let maxClumps = 900               // max number of falling snow clumps at once
-    static let dockPileMax: CGFloat = 18     // max snow height on the Dock
+    static let dockSnow = false              // false = snow falls straight through the Dock instead of piling on it
+    static let dockPileMax: CGFloat = 18    // max snow height on the Dock
     static let dockPad: CGFloat = 4          // extra width of the Dock pile on each side of the icon area
     static let dockTopOffset: CGFloat = -1   // in physical pixels (so Retina and normal screens match); lower it if the snow floats above the Dock, raise it if it sinks in
     static let fallSpeed: CGFloat = 1.5      // falling speed multiplier (1 = original, bigger = faster)
@@ -35,7 +36,12 @@ enum Cfg {
     static let bulbCore: CGFloat = 5.5       // size of a bulb's bright center
     // macOS doesn't expose corner radii, so these are measured by eye. Window corners depend on the macOS version.
     static let windowCornerRadius: CGFloat = ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26 ? 16 : 11   // snow follows the curve (0 = square)
-    static let dockCornerRatio: CGFloat = 0.32  // the Dock's corner radius as a share of its height, so it scales with the Dock size
+    static let dockCornerRatio: CGFloat = 0.24  // the Dock's corner radius as a share of the Dock's own height (from Accessibility), so it follows the Dock's size on each screen
+    // Dock tuning for Retina (2x) screens such as the MacBook's. They start equal to the normal-screen values above;
+    // the Dock's shelf doesn't line up with what macOS reports in exactly the same way on both, so tune them separately.
+    static let dockPadRetina: CGFloat = 0
+    static let dockTopOffsetRetina: CGFloat = -1
+    static let dockCornerRatioRetina: CGFloat = 0.24
     static let dockGain: CGFloat = 3.0       // snow landing on the Dock counts this many times more, so it builds up
     static let shadeDrop: CGFloat = 1.5      // how far the blue-grey shade sits below the snow, in physical pixels
     static let flakeSnow: CGFloat = 0.3      // how much snow a falling flake adds when it lands (1 = original, 0.5 = half)
@@ -723,6 +729,9 @@ final class SnowScene: SKScene {
 
     // MARK: Dragging & snowmen
 
+    /// Is this a Retina (2x) screen?
+    var retina: Bool { (displayScreen?.backingScaleFactor ?? 1) >= 2 }
+
     /// Size of one physical pixel of this screen in points (1 on a normal screen, 0.5 on Retina)
     var pixel: CGFloat { 1 / max(1, displayScreen?.backingScaleFactor ?? 1) }
 
@@ -1217,11 +1226,15 @@ final class SnowScene: SKScene {
 
     func updateDock() {
         var r: CGRect? = nil
+        var radius: CGFloat = 0     // the Dock's corner radius, from the Dock's own size (not from the trimmed hitbox)
         var status: String
-        if let f = dockTracker.frame() {
+        if !Cfg.dockSnow {
+            status = "snow on the Dock is switched off"
+        } else if let f = dockTracker.frame() {
             let o = displayScreen.frame.origin
-            var s = CGRect(x: f.minX - Cfg.dockPad - o.x, y: primaryHeight - f.maxY - o.y,
-                           width: f.width + 2 * Cfg.dockPad, height: f.height)
+            let pad = retina ? Cfg.dockPadRetina : Cfg.dockPad
+            var s = CGRect(x: f.minX - pad - o.x, y: primaryHeight - f.maxY - o.y,
+                           width: f.width + 2 * pad, height: f.height)
             // The AX frame can reach a bit above the visible Dock shelf. When the Dock is always
             // shown, the space macOS reserves for it (bottom of visibleFrame) is a better top edge.
             if let screen = displayScreen {
@@ -1232,6 +1245,7 @@ final class SnowScene: SKScene {
             // With auto-hide, a hidden Dock is reported below the screen edge, so it fails this check.
             if s.width > s.height && s.minY < 40 && s.maxY > 8 && s.minX >= -2 && s.maxX <= size.width + 2 {
                 r = s
+                radius = f.height * (retina ? Cfg.dockCornerRatioRetina : Cfg.dockCornerRatio)
                 status = "found at x=\(Int(s.minX)) width=\(Int(s.width)) top=\(Int(s.maxY)) (AX top \(Int(size.height - f.minY)), screen \(Int(size.width))x\(Int(size.height)))"
             } else {
                 status = "ignored (not at bottom or hidden), AX frame = \(f)"
@@ -1257,8 +1271,8 @@ final class SnowScene: SKScene {
         }
         dockRect = r
         if let r = r {
-            dockPile = Pile(minX: r.minX, topY: r.maxY + Cfg.dockTopOffset * pixel, width: r.width,
-                            maxH: Cfg.dockPileMax, cornerRadius: r.height * Cfg.dockCornerRatio, pixel: pixel, parent: world)
+            dockPile = Pile(minX: r.minX, topY: r.maxY + (retina ? Cfg.dockTopOffsetRetina : Cfg.dockTopOffset) * pixel, width: r.width,
+                            maxH: Cfg.dockPileMax, cornerRadius: radius, pixel: pixel, parent: world)
         }
     }
 

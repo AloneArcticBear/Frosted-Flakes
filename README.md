@@ -80,9 +80,13 @@ v1.1 (19 Nov)
 - Constant snowfall rate (Used to be dependent on window size)
 
 v1.2 (20 Nov)
-- Decreased snowfall accumulation rate
+- Decreased snowfall accumulation rate 70%
 - new snowstorm snow amount
 - rebalanced snow falling rates (12, 24, 48, 96)
+- fixed points <-> discrepancy on different resolutions
+- removed snow landing on docks
+- Rounded corners for windows
+
 
 
 ## CHANGES LATER:
