@@ -46,7 +46,7 @@ cd Frosted_Flakes
 zsh build.sh
 ```
 
-Use the ❄︎ in the menu bar to pause, pick light, medium or heavy snow, switch the fairy lights on, clear the snow, or quit.
+Use the ❄︎ in the menu bar to pause, pick light, medium, heavy, or snowstorm, switch the fairy lights on, clear the snow, or quit.
 
 - No `swiftc`? Run `xcode-select --install` first.
 - Want snow on the Dock too? Turn on **FrostedFlakes** (or **Terminal**, if you run it with `build.sh`) in System Settings → Privacy & Security → Accessibility.
@@ -92,4 +92,3 @@ v1.2 (20 Nov)
 - Fix rounded edges
 - Add idle snow falling
 - fix diff desktop
-- bug: pausing and resuming freezes snow

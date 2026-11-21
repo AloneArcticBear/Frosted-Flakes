@@ -20,7 +20,7 @@ enum Cfg {
     static let maxClumps = 900               // max number of falling snow clumps at once
     static let dockPileMax: CGFloat = 18     // max snow height on the Dock
     static let dockPad: CGFloat = 4          // extra width of the Dock pile on each side of the icon area
-    static let dockTopOffset: CGFloat = -1   // lower it if the snow floats above the Dock, raise it if it sinks in
+    static let dockTopOffset: CGFloat = -1   // in physical pixels (so Retina and normal screens match); lower it if the snow floats above the Dock, raise it if it sinks in
     static let fallSpeed: CGFloat = 1.5      // falling speed multiplier (1 = original, bigger = faster)
     static let flakesInFront = false         // some of the smallest flakes fall in front of windows, so they can reach the Dock
     static let inFrontFraction: CGFloat = 0.4 // share of the smallest layer that falls in front (0...1)
@@ -33,8 +33,12 @@ enum Cfg {
     static let lightInset: CGFloat = 14      // keep clear of the window's rounded corners
     static let bulbGlow: CGFloat = 19        // size of a bulb's soft glow
     static let bulbCore: CGFloat = 5.5       // size of a bulb's bright center
+    // macOS doesn't expose corner radii, so these are measured by eye. Window corners depend on the macOS version.
+    static let windowCornerRadius: CGFloat = ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26 ? 16 : 11   // snow follows the curve (0 = square)
+    static let dockCornerRatio: CGFloat = 0.32  // the Dock's corner radius as a share of its height, so it scales with the Dock size
     static let dockGain: CGFloat = 3.0       // snow landing on the Dock counts this many times more, so it builds up
-    static let flakeSnow: CGFloat = 0.5      // how much snow a falling flake adds when it lands (1 = original, 0.5 = half)
+    static let shadeDrop: CGFloat = 1.5      // how far the blue-grey shade sits below the snow, in physical pixels
+    static let flakeSnow: CGFloat = 0.3      // how much snow a falling flake adds when it lands (1 = original, 0.5 = half)
 }
 
 // MARK: - Find the Dock (needs Accessibility permission)
@@ -247,6 +251,9 @@ let avgFlakeSpeed: CGFloat = zip(layers, layerWeights).reduce(0) { $0 + ($1.0.sp
     var topY: CGFloat
     let width: CGFloat
     let maxH: CGFloat
+    let pixel: CGFloat           // size of one physical pixel in points (0.5 on a Retina screen); tiny offsets use this
+    let cornerRadius: CGFloat    // the top corners of what the snow sits on are rounded
+    var bases: [CGFloat]         // per column: how far the surface curves below topY near the corners (<= 0)
     var h: [CGFloat]
     var caps: [CGFloat]          // max height per column, tapering at both ends so it looks rounded
     var occ: [Bool]              // whether this column is hidden behind a window in front
@@ -254,12 +261,15 @@ let avgFlakeSpeed: CGFloat = zip(layers, layerWeights).reduce(0) { $0 + ($1.0.sp
     let shade = SKShapeNode()
     var dirty = false
 
-    init(minX: CGFloat, topY: CGFloat, width: CGFloat, maxH: CGFloat, parent: SKNode) {
+    init(minX: CGFloat, topY: CGFloat, width: CGFloat, maxH: CGFloat, cornerRadius: CGFloat = 0, pixel: CGFloat = 1, parent: SKNode) {
         self.minX = minX
         self.topY = topY
         self.width = width
         self.maxH = maxH
+        self.cornerRadius = cornerRadius
+        self.pixel = pixel
         let n = max(1, Int((width / Cfg.colW).rounded(.up)))
+        bases = (0..<n).map { i in Pile.curve(at: (CGFloat(i) + 0.5) * Cfg.colW, width: width, radius: cornerRadius) }
         h = Array(repeating: 0, count: n)
         occ = Array(repeating: false, count: n)
         caps = (0..<n).map { i in
@@ -276,10 +286,23 @@ let avgFlakeSpeed: CGFloat = zip(layers, layerWeights).reduce(0) { $0 + ($1.0.sp
         shade.strokeColor = .clear
         shade.lineWidth = 0
         shade.zPosition = 4
-        shade.position = CGPoint(x: 0, y: -1.5)
+        shade.position = CGPoint(x: 0, y: -Cfg.shadeDrop * pixel)
         parent.addChild(shade)
         parent.addChild(body)
     }
+
+    /// How far a rounded-corner top edge dips below its flat top at distance x from the left end (quarter-circle arcs)
+    static func curve(at x: CGFloat, width: CGFloat, radius: CGFloat) -> CGFloat {
+        guard radius > 0 else { return 0 }
+        let d = max(0, min(x, width - x))
+        if d >= radius { return 0 }
+        let k = radius - d
+        return -(radius - (radius * radius - k * k).squareRoot())
+    }
+
+    /// Height of the bare edge (no snow) under column c, and under any x
+    func top(_ c: Int) -> CGFloat { topY + bases[c] }
+    func topAt(_ x: CGFloat) -> CGFloat { topY + Pile.curve(at: x - minX, width: width, radius: cornerRadius) }
 
     var count: Int { h.count }
     var total: CGFloat { h.reduce(0, +) }
@@ -289,7 +312,7 @@ let avgFlakeSpeed: CGFloat = zip(layers, layerWeights).reduce(0) { $0 + ($1.0.sp
         return (c >= 0 && c < count) ? c : nil
     }
     func colX(_ c: Int) -> CGFloat { minX + (CGFloat(c) + 0.5) * Cfg.colW }
-    func surface(_ c: Int) -> CGFloat { topY + h[c] }
+    func surface(_ c: Int) -> CGFloat { topY + bases[c] + h[c] }
 
     func add(at c: Int, amount: CGFloat) {
         let spread: [(Int, CGFloat)] = [(0, 1), (-1, 0.75), (1, 0.75), (-2, 0.45), (2, 0.45), (-3, 0.2), (3, 0.2)]
@@ -331,12 +354,23 @@ let avgFlakeSpeed: CGFloat = zip(layers, layerWeights).reduce(0) { $0 + ($1.0.sp
             return
         }
         let p = CGMutablePath()
-        p.move(to: CGPoint(x: minX, y: topY))
-        for c in 0..<count { p.addLine(to: CGPoint(x: colX(c), y: topY + h[c])) }
-        p.addLine(to: CGPoint(x: minX + width, y: topY))
+        // Top edge follows the snow surface; the bottom edge follows the rounded corners of the window or Dock
+        p.move(to: CGPoint(x: minX, y: topAt(minX)))
+        for c in 0..<count { p.addLine(to: CGPoint(x: colX(c), y: surface(c))) }
+        p.addLine(to: CGPoint(x: minX + width, y: topAt(minX + width)))
+        for c in stride(from: count - 1, through: 0, by: -1) { p.addLine(to: CGPoint(x: colX(c), y: top(c))) }
         p.closeSubpath()
         body.path = p
-        shade.path = p
+        // The shade sits 1.5px lower than the snow. Where the snow is thinner than that, the two would stop
+        // touching and the window's own edge would show through as a thin dark line, so the shade's top
+        // edge is never lower than the bottom of the snow.
+        let sp = CGMutablePath()
+        sp.move(to: CGPoint(x: minX, y: topAt(minX)))
+        for c in 0..<count { sp.addLine(to: CGPoint(x: colX(c), y: top(c) + (h[c] > 0.05 ? max(h[c], -shade.position.y) : 0))) }
+        sp.addLine(to: CGPoint(x: minX + width, y: topAt(minX + width)))
+        for c in stride(from: count - 1, through: 0, by: -1) { sp.addLine(to: CGPoint(x: colX(c), y: top(c))) }
+        sp.closeSubpath()
+        shade.path = sp
     }
 
     func remove() {
@@ -525,7 +559,7 @@ final class SnowScene: SKScene {
     func resetGround() {
         for b in balls where b.pile === ground { b.drop(vel: .zero) }
         ground?.remove()
-        ground = Pile(minX: 0, topY: 0, width: size.width, maxH: Cfg.groundPileMax, parent: world)
+        ground = Pile(minX: 0, topY: 0, width: size.width, maxH: Cfg.groundPileMax, pixel: pixel, parent: world)
     }
 
     func clearAll() {
@@ -614,7 +648,7 @@ final class SnowScene: SKScene {
             var amount = p.h[c] / 3.5 * k
             while amount > 0 {
                 if amount < 1 && CGFloat.random(in: 0...1) > amount { break }
-                spawnClump(at: CGPoint(x: p.colX(c) + rnd(-1.5, 1.5), y: p.topY + rnd(0, p.h[c])),
+                spawnClump(at: CGPoint(x: p.colX(c) + rnd(-1.5, 1.5), y: p.top(c) + rnd(0, p.h[c])),
                            vel: CGVector(dx: fling.dx + rnd(-40, 40), dy: fling.dy + rnd(10, 80)),
                            sourceID: id)
                 amount -= 1
@@ -688,6 +722,9 @@ final class SnowScene: SKScene {
     }
 
     // MARK: Dragging & snowmen
+
+    /// Size of one physical pixel of this screen in points (1 on a normal screen, 0.5 on Retina)
+    var pixel: CGFloat { 1 / max(1, displayScreen?.backingScaleFactor ?? 1) }
 
     /// Mouse position in this scene's coordinates (origin bottom-left of this monitor)
     var mouse: CGPoint {
@@ -885,7 +922,7 @@ final class SnowScene: SKScene {
     /// Is the mouse inside the snow band of this pile (a bit below the edge up to a bit above the snow)?
     func mouseOver(_ p: Pile, _ m: CGPoint) -> Bool {
         guard let c = p.col(at: m.x), !p.occ[c] else { return false }
-        return m.y >= p.topY - 6 && m.y <= p.topY + p.h[c] + 14
+        return m.y >= p.top(c) - 6 && m.y <= p.top(c) + p.h[c] + 14
     }
 
     /// Which snow surface is the mouse hovering over? Dock first, then windows front to back, then the ground.
@@ -894,7 +931,7 @@ final class SnowScene: SKScene {
         // stops rolling as soon as the cursor rises above the thin snow band, which makes pushing jerky.
         for b in balls where !b.falling && !b.dragging && !b.node.isHidden && b.below == nil {
             guard let p = b.pile, abs(m.x - b.x) < b.r + 8 else { continue }
-            if m.y >= p.topY - 6 && m.y <= p.topY + 2 * b.r + 8 { return p }
+            if m.y >= p.topAt(m.x) - 6 && m.y <= p.topAt(m.x) + 2 * b.r + 8 { return p }
         }
         if let d = dockPile, mouseOver(d, m) { return d }
         if let dr = dockRect, dr.contains(m) { return nil }
@@ -924,7 +961,7 @@ final class SnowScene: SKScene {
             let b = Snowball(body: ballTex!, specks: speckTex!)
             b.x = m.x
             b.pile = p
-            b.y = p.topY + b.r - 1.5
+            b.y = p.topAt(b.x) + b.r - 1.5
             b.layout()
             world.addChild(b.node)
             balls.append(b)
@@ -1037,7 +1074,7 @@ final class SnowScene: SKScene {
                 } else {
                     b.node.isHidden = true
                 }
-                b.y = p.topY + b.r - 1.5           // sits slightly sunk into the snow
+                b.y = p.topAt(b.x) + b.r - 1.5     // sits slightly sunk into the snow
             } else {
                 b.drop(vel: .zero)                 // lost its support (e.g. the ball below was removed)
             }
@@ -1097,7 +1134,7 @@ final class SnowScene: SKScene {
         b.pile = p
         let lo = p.minX + b.r, hi = p.minX + p.width - b.r
         if lo < hi { b.x = min(max(b.x, lo), hi) }
-        b.y = p.topY + b.r - 1.5
+        b.y = p.topAt(b.x) + b.r - 1.5
     }
 
     /// A falling snowball bursts into loose snow when it hits the ground
@@ -1109,6 +1146,9 @@ final class SnowScene: SKScene {
                        sourceID: -3)
         }
     }
+
+    /// Corner radius for the snow on a window: a window that reaches the top of the screen (fullscreen) has square corners
+    func windowRadius(_ r: CGRect) -> CGFloat { r.maxY >= size.height - 1 ? 0 : Cfg.windowCornerRadius }
 
     // Read all window frames (macOS origin is top-left, SpriteKit is bottom-left, so flip y)
     func pollWindows(dt: CGFloat) {
@@ -1146,7 +1186,7 @@ final class SnowScene: SKScene {
                     // Width changed: drop the snow and start a new pile
                     release(pile, vel: .zero, id: id)
                     pile.remove()
-                    piles[id] = Pile(minX: r.minX, topY: r.maxY, width: r.width, maxH: Cfg.windowPileMax, parent: world)
+                    piles[id] = Pile(minX: r.minX, topY: r.maxY, width: r.width, maxH: Cfg.windowPileMax, cornerRadius: windowRadius(r), pixel: pixel, parent: world)
                 } else if abs(old.minX - r.minX) > 0.3 || abs(old.maxY - r.maxY) > 0.3 {
                     // Window dragged: fling the snow off
                     let v = CGVector(dx: (r.minX - old.minX) / dt, dy: (r.maxY - old.maxY) / dt)
@@ -1155,7 +1195,7 @@ final class SnowScene: SKScene {
                     release(pile, vel: v, id: id)
                 }
             } else {
-                piles[id] = Pile(minX: r.minX, topY: r.maxY, width: r.width, maxH: Cfg.windowPileMax, parent: world)
+                piles[id] = Pile(minX: r.minX, topY: r.maxY, width: r.width, maxH: Cfg.windowPileMax, cornerRadius: windowRadius(r), pixel: pixel, parent: world)
             }
             lastRect[id] = r
         }
@@ -1217,8 +1257,8 @@ final class SnowScene: SKScene {
         }
         dockRect = r
         if let r = r {
-            dockPile = Pile(minX: r.minX, topY: r.maxY + Cfg.dockTopOffset, width: r.width,
-                            maxH: Cfg.dockPileMax, parent: world)
+            dockPile = Pile(minX: r.minX, topY: r.maxY + Cfg.dockTopOffset * pixel, width: r.width,
+                            maxH: Cfg.dockPileMax, cornerRadius: r.height * Cfg.dockCornerRatio, pixel: pixel, parent: world)
         }
     }
 
@@ -1227,7 +1267,7 @@ final class SnowScene: SKScene {
         for (i, item) in order.enumerated() {
             guard let p = piles[item.id] else { continue }
             for c in 0..<p.count {
-                let pt = CGPoint(x: p.colX(c), y: p.topY + 1)
+                let pt = CGPoint(x: p.colX(c), y: p.top(c) + 1)
                 var o = pt.x < 0 || pt.x > size.width || pt.y > size.height
                 if !o {
                     for j in 0..<i where order[j].rect.contains(pt) { o = true; break }
