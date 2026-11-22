@@ -386,6 +386,31 @@ let avgFlakeSpeed: CGFloat = zip(layers, layerWeights).reduce(0) { $0 + ($1.0.sp
         body.removeFromParent()
         shade.removeFromParent()
     }
+
+    func setVisible(_ v: Bool) {
+        body.isHidden = !v
+        shade.isHidden = !v
+    }
+}
+
+// MARK: - Desktops (Spaces)
+
+// macOS has no public API for "which desktop is showing", so ask the window server's private
+// functions. They are looked up at run time; if they ever go away every desktop just shares one pile.
+private typealias CGSConnFn = @convention(c) () -> Int32
+private typealias CGSSpaceFn = @convention(c) (Int32) -> Int
+func activeSpaceID() -> Int {
+    guard let h = dlopen(nil, RTLD_NOW),
+          let c = dlsym(h, "CGSMainConnectionID"),
+          let a = dlsym(h, "CGSGetActiveSpace") else { return 0 }
+    let conn = unsafeBitCast(c, to: CGSConnFn.self)()
+    return unsafeBitCast(a, to: CGSSpaceFn.self)(conn)
+}
+
+/// Numbers of all windows that still exist, including ones on other desktops or minimized
+func allWindowIDs() -> Set<Int> {
+    let info = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+    return Set(info.compactMap { ($0[kCGWindowNumber as String] as? NSNumber)?.intValue })
 }
 
 // MARK: - Fairy lights
@@ -520,6 +545,9 @@ final class SnowScene: SKScene {
     var lastRect: [Int: CGRect] = [:]
     var order: [(id: Int, rect: CGRect)] = []    // windows from front to back
     var ground: Pile?
+    var parked: [Int: (pile: Pile, rect: CGRect)] = [:]   // snow on windows that are on another desktop right now
+    var groundBySpace: [Int: [CGFloat]] = [:]             // snow at the bottom of each desktop that isn't showing
+    var currentSpace = activeSpaceID()
     var tex: SKTexture?
     var lastT: TimeInterval = 0
     var pollAcc: CGFloat = 0
@@ -565,7 +593,28 @@ final class SnowScene: SKScene {
         resetGround()
     }
 
+    /// Another desktop is now showing: put this desktop's ground snow away and bring that one's back
+    func switchSpace(to space: Int) {
+        guard space != currentSpace else { return }
+        if let g = ground {
+            groundBySpace[currentSpace] = g.h
+            for b in balls where b.pile === g { b.drop(vel: .zero) }
+            let saved = groundBySpace[space] ?? []
+            g.h = saved.count == g.h.count ? saved : Array(repeating: 0, count: g.h.count)
+            g.dirty = true
+            g.redraw()
+        }
+        currentSpace = space
+        // Forget snow of windows that were closed while they were on another desktop
+        let existing = allWindowIDs()
+        for (id, p) in parked where !existing.contains(id) {
+            p.pile.remove()
+            parked[id] = nil
+        }
+    }
+
     func resetGround() {
+        groundBySpace.removeAll()
         for b in balls where b.pile === ground { b.drop(vel: .zero) }
         ground?.remove()
         ground = Pile(minX: 0, topY: 0, width: size.width, maxH: Cfg.groundPileMax, pixel: pixel, parent: world)
@@ -573,6 +622,9 @@ final class SnowScene: SKScene {
     }
 
     func clearAll() {
+        for p in parked.values { p.pile.remove() }
+        parked.removeAll()
+        groundBySpace.removeAll()
         for p in piles.values { p.clear(); p.redraw() }
         dockPile?.clear()
         dockPile?.redraw()
@@ -1183,17 +1235,39 @@ final class SnowScene: SKScene {
             }
         }
 
-        // Closed / minimized windows: their snow just falls
+        // Windows that vanished: if they still exist (another desktop, minimized) keep their snow hidden
+        // for when they come back; if they were closed, their snow just falls
         let alive = Set(newOrder.map { $0.id })
+        var existing: Set<Int>? = nil
         for (id, pile) in piles where !alive.contains(id) {
-            release(pile, vel: .zero, id: id)
-            pile.remove()
+            if existing == nil { existing = allWindowIDs() }
+            if existing!.contains(id), let r = lastRect[id] {
+                for b in balls where b.pile === pile { b.drop(vel: .zero) }
+                pile.setVisible(false)
+                parked[id] = (pile, r)
+            } else {
+                release(pile, vel: .zero, id: id)
+                pile.remove()
+            }
             piles[id] = nil
             lastRect[id] = nil
         }
 
         for item in newOrder {
             let id = item.id, r = item.rect
+            if piles[id] == nil, let p = parked.removeValue(forKey: id) {
+                if abs(p.rect.width - r.width) < 0.5 {
+                    // Back from another desktop: bring its snow back
+                    p.pile.minX = r.minX
+                    p.pile.topY = r.maxY
+                    p.pile.setVisible(true)
+                    p.pile.dirty = true
+                    piles[id] = p.pile
+                    lastRect[id] = r
+                    continue
+                }
+                p.pile.remove()
+            }
             if let pile = piles[id], let old = lastRect[id] {
                 if abs(old.width - r.width) > 0.5 {
                     // Width changed: drop the snow and start a new pile
@@ -1457,6 +1531,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             UserDefaults.standard.set(true, forKey: "seenGuide")
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in self?.showGuide() }
         }
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(spaceChanged),
+                                                          name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
                                                name: NSApplication.didChangeScreenParametersNotification, object: nil)
 
@@ -1561,6 +1637,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: "Let it snow!")
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
+    }
+
+    @MainActor @objc func spaceChanged() {
+        let space = activeSpaceID()
+        for sc in scenes { sc.switchSpace(to: space) }
     }
 
     @MainActor @objc func toggleInfinite() {
