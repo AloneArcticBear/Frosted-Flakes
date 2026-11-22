@@ -15,6 +15,7 @@ enum Cfg {
     static let colW: CGFloat = 3             // width of one column of the snow height map (px)
     static let windowPileMax: CGFloat = 16   // max snow height on top of a window
     static let groundPileMax: CGFloat = 34   // max snow height at the bottom of the screen
+    static var infiniteGround = false        // true = snow at the bottom of the screen piles up without limit (the menu sets this)
     static let gravity: CGFloat = 900        // gravity for snow sliding off
     static let pollInterval = 1.0 / 30.0     // how often window positions are checked (s)
     static let maxClumps = 900               // max number of falling snow clumps at once
@@ -266,6 +267,8 @@ let avgFlakeSpeed: CGFloat = zip(layers, layerWeights).reduce(0) { $0 + ($1.0.sp
     let body = SKShapeNode()
     let shade = SKShapeNode()
     var dirty = false
+    var unlimited = false        // true = ignore the height caps, so the snow keeps piling up
+    func cap(_ i: Int) -> CGFloat { unlimited ? .greatestFiniteMagnitude : caps[i] }
 
     init(minX: CGFloat, topY: CGFloat, width: CGFloat, maxH: CGFloat, cornerRadius: CGFloat = 0, pixel: CGFloat = 1, parent: SKNode) {
         self.minX = minX
@@ -325,7 +328,7 @@ let avgFlakeSpeed: CGFloat = zip(layers, layerWeights).reduce(0) { $0 + ($1.0.sp
         for (o, w) in spread {
             let i = c + o
             guard i >= 0, i < count, !occ[i] else { continue }
-            h[i] = min(caps[i], h[i] + amount * w)
+            h[i] = min(cap(i), h[i] + amount * w)
         }
         dirty = true
     }
@@ -338,8 +341,8 @@ let avgFlakeSpeed: CGFloat = zip(layers, layerWeights).reduce(0) { $0 + ($1.0.sp
             let d = h[i] - h[i + 1]
             if abs(d) > 1.0 {
                 let m = (abs(d) - 1.0) * 0.3 * (d > 0 ? 1 : -1)
-                h[i] = max(0, min(caps[i], h[i] - m))
-                h[i + 1] = max(0, min(caps[i + 1], h[i + 1] + m))
+                h[i] = max(0, min(cap(i), h[i] - m))
+                h[i + 1] = max(0, min(cap(i + 1), h[i + 1] + m))
                 if abs(m) > 0.02 { moved = true }
             }
         }
@@ -566,6 +569,7 @@ final class SnowScene: SKScene {
         for b in balls where b.pile === ground { b.drop(vel: .zero) }
         ground?.remove()
         ground = Pile(minX: 0, topY: 0, width: size.width, maxH: Cfg.groundPileMax, pixel: pixel, parent: world)
+        ground?.unlimited = Cfg.infiniteGround
     }
 
     func clearAll() {
@@ -1125,7 +1129,7 @@ final class SnowScene: SKScene {
                 let i = c0 + o
                 guard i >= 0, i < p.count, !p.occ[i] else { continue }
                 let w = (1 - abs(CGFloat(o)) / CGFloat(half + 1)) / sum
-                p.h[i] = min(p.caps[i], p.h[i] + snow * w)
+                p.h[i] = min(p.cap(i), p.h[i] + snow * w)
             }
             p.dirty = true
         }
@@ -1402,6 +1406,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     var pauseItem: NSMenuItem!
     var lightsItem: NSMenuItem!
+    var infiniteItem: NSMenuItem!
     var amountItems: [NSMenuItem] = []
 
     /// One transparent overlay window with its own snow scene for a monitor
@@ -1487,7 +1492,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let amount = NSMenuItem(title: "Snow Amount", action: nil, keyEquivalent: "")
         let sub = NSMenu()
-        for (title, n) in [("Light", 12), ("Medium", 24), ("Heavy", 48), ("Snowstorm", 96)] {
+        for (title, n) in [("Light", 12), ("Medium", 24), ("Heavy", 48), ("Snowstorm", 96), ("Super Storm", 192)] {
             let it = NSMenuItem(title: title, action: #selector(setAmount(_:)), keyEquivalent: "")
             it.target = self
             it.tag = n
@@ -1502,6 +1507,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         lightsItem.target = self
         lightsItem.state = (scenes.first?.lightsOn ?? false) ? .on : .off
         menu.addItem(lightsItem)
+
+        infiniteItem = NSMenuItem(title: "Endless Snow Pile ∞", action: #selector(toggleInfinite), keyEquivalent: "i")
+        infiniteItem.target = self
+        infiniteItem.state = Cfg.infiniteGround ? .on : .off
+        menu.addItem(infiniteItem)
 
         let clear = NSMenuItem(title: "Clear Snow", action: #selector(clearSnow), keyEquivalent: "c")
         clear.target = self
@@ -1551,6 +1561,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: "Let it snow!")
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
+    }
+
+    @MainActor @objc func toggleInfinite() {
+        Cfg.infiniteGround.toggle()
+        for sc in scenes { sc.ground?.unlimited = Cfg.infiniteGround }
+        infiniteItem.state = Cfg.infiniteGround ? .on : .off
     }
 
     @objc func toggleLights() {
